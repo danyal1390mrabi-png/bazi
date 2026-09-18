@@ -210,7 +210,14 @@
     const categories = collectFormAnswers();
     if(isHost){ hostSubmit(categories); }
     else if(hostConn && hostConn.open){ hostConn.send({type:'submit', categories}); }
-    render();
+
+    // فرم را همین‌جا غیرفعال می‌کنیم؛ به‌جای render() کامل، تا مقادیر تایپ‌شده پاک نشوند
+    CATEGORIES.forEach(c=>{
+      const el = document.getElementById('cat_' + c.key);
+      if(el) el.disabled = true;
+    });
+    const btn = document.getElementById('submitBtn');
+    if(btn){ btn.disabled = true; btn.textContent = 'ارسال شد ✓'; }
   }
 
   function requestStart(){
@@ -280,16 +287,25 @@
   }
 
   // ---------------- RENDER ----------------
-  function render(){
-    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+  // شماره‌ی دوری که الان اسکلت فرمش در صفحه ساخته شده؛ تا وقتی دور عوض نشده،
+  // فرم دوباره از صفر ساخته نمی‌شود و چیزی که کاربر تایپ کرده پاک نمی‌شود.
+  let playingRoundKey = null;
 
-    if(screen === 'landing') return renderLanding();
-    if(screen === 'connecting') return renderConnecting();
+  function stopPlayingTimer(){
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+    playingRoundKey = null;
+  }
+
+  function render(){
+    if(screen === 'landing'){ stopPlayingTimer(); return renderLanding(); }
+    if(screen === 'connecting'){ stopPlayingTimer(); return renderConnecting(); }
 
     if(state.phase === 'playing'){
-      timerInterval = setInterval(render, 250);
-      return renderPlaying();
+      renderPlayingSmart();
+      return;
     }
+
+    stopPlayingTimer();
     if(state.phase === 'reveal') return renderReveal();
     return renderLobby();
   }
@@ -369,9 +385,19 @@
     document.getElementById('startBtn').onclick = requestStart;
   }
 
-  function renderPlaying(){
-    const remain = Math.max(0, state.deadline - Date.now());
-    const secs = Math.ceil(remain/1000);
+  // فقط وقتی دور عوض شده (یا اولین‌بار وارد صفحه‌ی بازی می‌شویم) فرم را کامل می‌سازیم؛
+  // در غیر این صورت فقط بخش‌های متغیر را به‌روزرسانی می‌کنیم (updatePlayingDynamic).
+  function renderPlayingSmart(){
+    if(playingRoundKey !== state.roundNum){
+      playingRoundKey = state.roundNum;
+      if(timerInterval) clearInterval(timerInterval);
+      buildPlayingSkeleton();
+      timerInterval = setInterval(updatePlayingDynamic, 250);
+    }
+    updatePlayingDynamic();
+  }
+
+  function buildPlayingSkeleton(){
     root.innerHTML = `
       <div class="layout">
         <div class="panel">
@@ -379,7 +405,7 @@
             <div class="letter-chip">${state.letter}</div>
             <div>
               <div class="status-line" style="margin-top:0;">دور ${state.roundNum}</div>
-              <div class="timer ${secs<=10?'low':''}">${secs} ثانیه</div>
+              <div class="timer" id="timerBox">-- ثانیه</div>
             </div>
           </div>
           <div class="cat-grid">
@@ -392,13 +418,27 @@
           </div>
           <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
             <button class="btn-primary" id="submitBtn" ${submittedThisRound?'disabled':''}>${submittedThisRound?'ارسال شد ✓':'ارسال جواب‌ها'}</button>
-            <span class="status-line" style="margin-top:0;">${Object.keys(state.answers).length} نفر ارسال کرده‌اند</span>
+            <span class="status-line" style="margin-top:0;" id="submittedCount">${Object.keys(state.answers).length} نفر ارسال کرده‌اند</span>
           </div>
         </div>
-        ${sidebarHtml()}
+        <div id="sideSlot">${sidebarHtml()}</div>
       </div>
     `;
     document.getElementById('submitBtn').onclick = submitAnswers;
+  }
+
+  function updatePlayingDynamic(){
+    const remain = Math.max(0, state.deadline - Date.now());
+    const secs = Math.ceil(remain/1000);
+    const timerBox = document.getElementById('timerBox');
+    if(timerBox){
+      timerBox.textContent = secs + ' ثانیه';
+      timerBox.className = 'timer' + (secs<=10?' low':'');
+    }
+    const countEl = document.getElementById('submittedCount');
+    if(countEl) countEl.textContent = Object.keys(state.answers).length + ' نفر ارسال کرده‌اند';
+    const sideSlot = document.getElementById('sideSlot');
+    if(sideSlot) sideSlot.innerHTML = sidebarHtml();
   }
 
   function renderReveal(){
