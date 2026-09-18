@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اسم و فامیل آنلاین</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  :root{
+    --bg:#F3EFE6; --panel:#FFFFFF; --ink:#22261F; --muted:#71786A; --line:#E4DFD0;
+    --brand:#33513F; --brand-deep:#233727; --accent:#E2A63F; --accent-deep:#C4872A;
+    --bad:#B5473A; --good:#33513F;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; min-height:100%; background:var(--bg); color:var(--ink); font-family:'Vazirmatn',sans-serif; }
+  body{ padding:28px 16px 60px; }
+  .wrap{ max-width:880px; margin:0 auto; }
+  header{ text-align:center; margin-bottom:22px; }
+  header h1{ font-size:26px; margin:0 0 6px; }
+  header p{ margin:0; color:var(--muted); font-size:14px; }
+  .layout{ display:grid; grid-template-columns:1fr 240px; gap:18px; align-items:start; }
+  @media (max-width:680px){ .layout{ grid-template-columns:1fr; } }
+  .panel{ background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; box-shadow:0 18px 40px -28px rgba(30,35,25,0.35); }
+  .badge{ display:inline-block; font-size:12.5px; font-weight:700; color:var(--brand); background:#E9F0EA; border-radius:999px; padding:4px 12px; margin-bottom:12px; }
+  input[type=text]{ width:100%; border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; font-family:inherit; font-size:14.5px; outline:none; background:#FBFAF6; color:var(--ink); }
+  input[type=text]:focus{ border-color:var(--accent); box-shadow:0 0 0 3px rgba(226,166,63,0.22); }
+  button{ font-family:inherit; cursor:pointer; border:none; border-radius:10px; font-weight:700; font-size:14.5px; padding:11px 18px; }
+  .btn-primary{ background:var(--accent); color:#2A1C05; }
+  .btn-primary:hover{ background:var(--accent-deep); }
+  .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-ghost{ background:#EEEAE0; color:var(--ink); }
+  .status-line{ font-size:13px; color:var(--muted); margin-top:10px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:5px; }
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+  .code-box{
+    font-family:monospace; font-size:13px; background:#F3EFE6; border:1px dashed var(--line);
+    border-radius:10px; padding:10px 12px; word-break:break-all; user-select:all;
+  }
+  .letter-chip{ width:56px; height:56px; border-radius:14px; background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:800; flex:none; }
+  .play-head{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .timer{ font-variant-numeric:tabular-nums; font-size:22px; font-weight:700; color:var(--brand); }
+  .timer.low{ color:var(--bad); }
+  .cat-grid{ display:grid; gap:10px; }
+  .cat-row label{ display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:4px; }
+  table.score-table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+  table.score-table th, table.score-table td{ border-bottom:1px solid var(--line); padding:7px 6px; text-align:center; }
+  table.score-table th:first-child, table.score-table td:first-child{ text-align:right; }
+  .pt-10{ color:var(--good); font-weight:700; }
+  .pt-5{ color:var(--accent-deep); font-weight:700; }
+  .pt-0{ color:var(--muted); }
+  .side h3{ font-size:14px; margin:0 0 10px; }
+  .player-row{ display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13.5px; }
+  .player-row:last-child{ border-bottom:none; }
+  .player-row .name{ display:flex; align-items:center; gap:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dot{ width:8px; height:8px; border-radius:50%; flex:none; }
+  .player-row .score{ font-weight:700; color:var(--brand); }
+  .hint{ font-size:12.5px; color:var(--muted); margin-top:14px; line-height:1.7; }
+  .conn-dot{ display:inline-block; width:9px; height:9px; border-radius:50%; background:#C4872A; margin-left:6px; }
+  .conn-dot.ok{ background:#33513F; }
+  .tabs{ display:flex; gap:8px; margin-bottom:16px; }
+  .tabs button{ flex:1; background:#EEEAE0; color:var(--ink); }
+  .tabs button.active{ background:var(--brand); color:#fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>اسم و فامیل آنلاین</h1>
+    <p>بدون سرور، بدون حساب — مستقیم مرورگر به مرورگر (WebRTC)</p>
+  </header>
+  <div id="root"><div class="panel">در حال آماده‌سازی…</div></div>
+</div>
+
+<script>
+  const CATEGORIES = [
+    { key:'name',   label:'نام' },
+    { key:'family', label:'نام خانوادگی' },
+    { key:'city',   label:'شهر' },
+    { key:'animal', label:'حیوان' },
+    { key:'food',   label:'غذا' },
+    { key:'color',  label:'رنگ' },
+  ];
+  const LETTERS = ['ا','ب','پ','ت','ج','چ','د','ر','ز','س','ش','ص','ط','ع','ف','ق','ک','گ','ل','م','ن','و','ه','ی'];
+  const ROUND_MS = 60000;
+
+  const root = document.getElementById('root');
+
+  let screen = 'landing';   // landing | connecting | room
+  let isHost = false;
+  let peer = null, myId = null, hostConn = null;
+  const conns = [];         // host only: array of DataConnection
+  let nameDraft = '';
+  let joinCodeDraft = '';
+  let joinError = '';
+
+  let state = { phase:'lobby', roundNum:0, letter:null, deadline:null, players:{}, answers:{} };
+
+  let submittedThisRound = false;
+  let timerInterval = null;
+  let deadlineTimer = null;
+
+  function norm(s){ return (s||'').trim().toLowerCase().replace(/[يى]/g,'ی').replace(/ك/g,'ک'); }
+  function startsWithLetter(word, letter){
+    const w = norm(word); if(!w) return false;
+    const l = norm(letter);
+    if(l === 'ا') return w[0]==='ا' || w[0]==='آ' || w[0]==='أ' || w[0]==='إ';
+    return w[0] === l;
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function pointsFor(word, letter, allWords){
+    if(!startsWithLetter(word, letter)) return 0;
+    const key = norm(word);
+    const count = allWords.filter(w=> norm(w)===key).length;
+    return count===1 ? 10 : 5;
+  }
+
+  // ---------------- HOST-SIDE LOGIC ----------------
+  function broadcastState(){
+    const payload = JSON.parse(JSON.stringify(state));
+    conns.forEach(c=>{ try{ if(c.open) c.send({type:'state', state: payload}); }catch(e){} });
+    render();
+  }
+
+  function handleClientMessage(conn, msg){
+    const pid = conn.peer;
+    if(msg.type === 'join'){
+      state.players[pid] = state.players[pid] || { name: msg.name, score: 0 };
+      state.players[pid].name = msg.name || state.players[pid].name;
+      broadcastState();
+    } else if(msg.type === 'submit'){
+      if(state.phase === 'playing'){
+        state.answers[pid] = { categories: msg.categories };
+        broadcastState();
+      }
+    } else if(msg.type === 'requestStart'){
+      startRound();
+    }
+  }
+
+  function startRound(){
+    if(state.phase === 'playing') return;
+    const letter = LETTERS[Math.floor(Math.random()*LETTERS.length)];
+    state.roundNum += 1;
+    state.letter = letter;
+    state.phase = 'playing';
+    state.deadline = Date.now() + ROUND_MS;
+    state.answers = {};
+    submittedThisRound = false;
+    broadcastState();
+    scheduleFinish();
+  }
+
+  function scheduleFinish(){
+    if(deadlineTimer) clearTimeout(deadlineTimer);
+    const wait = Math.max(0, state.deadline - Date.now());
+    deadlineTimer = setTimeout(()=>{
+      if(!submittedThisRound && isHost) hostSubmit(collectFormAnswers());
+      finishRound();
+    }, wait + 300);
+  }
+
+  function finishRound(){
+    if(state.phase !== 'playing') return;
+    CATEGORIES.forEach(cat=>{
+      const groups = {};
+      Object.keys(state.answers).forEach(pid=>{
+        const val = (state.answers[pid].categories || {})[cat.key] || '';
+        if(startsWithLetter(val, state.letter)){
+          const key = norm(val);
+          (groups[key] = groups[key] || []).push(pid);
+        }
+      });
+      Object.values(groups).forEach(pids=>{
+        const pts = pids.length === 1 ? 10 : 5;
+        pids.forEach(pid=>{
+          if(state.players[pid]) state.players[pid].score = (state.players[pid].score||0) + pts;
+        });
+      });
+    });
+    state.phase = 'reveal';
+    broadcastState();
+  }
+
+  function hostSubmit(categories){
+    state.answers[myId] = { categories };
+    submittedThisRound = true;
+    broadcastState();
+  }
+
+  // ---------------- SHARED ACTIONS ----------------
+  function collectFormAnswers(){
+    const out = {};
+    CATEGORIES.forEach(c=>{
+      const el = document.getElementById('cat_' + c.key);
+      out[c.key] = el ? el.value : '';
+    });
+    return out;
+  }
+
+  function submitAnswers(){
+    if(submittedThisRound) return;
+    submittedThisRound = true;
+    const categories = collectFormAnswers();
+    if(isHost){ hostSubmit(categories); }
+    else if(hostConn && hostConn.open){ hostConn.send({type:'submit', categories}); }
+    render();
+  }
+
+  function requestStart(){
+    if(isHost){ startRound(); }
+    else if(hostConn && hostConn.open){ hostConn.send({type:'requestStart'}); }
+  }
+
+  // ---------------- CONNECTION SETUP ----------------
+  function createGame(){
+    nameDraft = (document.getElementById('hostName')||{}).value || nameDraft;
+    if(!nameDraft.trim()){ return; }
+    screen = 'connecting'; render();
+    isHost = true;
+    peer = new Peer();
+    peer.on('open', id=>{
+      myId = id;
+      state.players[myId] = { name: nameDraft.trim(), score: 0 };
+      screen = 'room';
+      render();
+    });
+    peer.on('connection', conn=>{
+      conns.push(conn);
+      conn.on('data', data=> handleClientMessage(conn, data));
+      conn.on('close', ()=>{
+        const idx = conns.indexOf(conn); if(idx>=0) conns.splice(idx,1);
+        delete state.players[conn.peer];
+        broadcastState();
+      });
+    });
+    peer.on('error', err=>{
+      joinError = 'خطا در ساخت بازی: ' + (err && err.type ? err.type : 'نامشخص');
+      screen = 'landing'; render();
+    });
+  }
+
+  function joinGame(){
+    nameDraft = (document.getElementById('joinName')||{}).value || nameDraft;
+    joinCodeDraft = ((document.getElementById('joinCode')||{}).value || '').trim();
+    if(!nameDraft.trim() || !joinCodeDraft){ return; }
+    joinError = '';
+    screen = 'connecting'; render();
+    isHost = false;
+    peer = new Peer();
+    peer.on('open', id=>{
+      myId = id;
+      hostConn = peer.connect(joinCodeDraft, { reliable:true });
+      hostConn.on('open', ()=>{
+        hostConn.send({type:'join', name: nameDraft.trim()});
+        screen = 'room'; render();
+      });
+      hostConn.on('data', msg=>{
+        if(msg.type === 'state'){ state = msg.state; render(); }
+      });
+      hostConn.on('close', ()=>{
+        joinError = 'اتصال به میزبان قطع شد.';
+        screen = 'landing'; render();
+      });
+      hostConn.on('error', ()=>{
+        joinError = 'اتصال برقرار نشد. کد بازی را بررسی کنید.';
+        screen = 'landing'; render();
+      });
+    });
+    peer.on('error', err=>{
+      joinError = 'خطای اتصال: ' + (err && err.type ? err.type : 'نامشخص');
+      screen = 'landing'; render();
+    });
+  }
+
+  // ---------------- RENDER ----------------
+  function render(){
+    if(timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+
+    if(screen === 'landing') return renderLanding();
+    if(screen === 'connecting') return renderConnecting();
+
+    if(state.phase === 'playing'){
+      timerInterval = setInterval(render, 250);
+      return renderPlaying();
+    }
+    if(state.phase === 'reveal') return renderReveal();
+    return renderLobby();
+  }
+
+  function renderLanding(){
+    root.innerHTML = `
+      <div class="panel">
+        ${joinError ? `<p class="status-line" style="color:var(--bad);">${escapeHtml(joinError)}</p>` : ''}
+        <div class="tabs">
+          <button id="tabCreate" class="active">بازی جدید بساز</button>
+          <button id="tabJoin">اتصال با کد</button>
+        </div>
+        <div id="paneCreate">
+          <div class="field"><label>اسمت</label><input type="text" id="hostName" placeholder="مثلاً سارا" value="${escapeHtml(nameDraft)}"></div>
+          <button class="btn-primary" id="createBtn">ساخت بازی و شدن میزبان</button>
+          <p class="hint">تو میزبان می‌شوی؛ یک کد به تو داده می‌شود که باید برای دوستانت بفرستی تا با آن وصل شوند.</p>
+        </div>
+        <div id="paneJoin" style="display:none;">
+          <div class="field"><label>اسمت</label><input type="text" id="joinName" placeholder="مثلاً سارا" value="${escapeHtml(nameDraft)}"></div>
+          <div class="field"><label>کد بازی</label><input type="text" id="joinCode" placeholder="کدی که میزبان فرستاده" value="${escapeHtml(joinCodeDraft)}"></div>
+          <button class="btn-primary" id="joinBtn">اتصال به بازی</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('tabCreate').onclick = ()=>{
+      document.getElementById('tabCreate').classList.add('active');
+      document.getElementById('tabJoin').classList.remove('active');
+      document.getElementById('paneCreate').style.display = '';
+      document.getElementById('paneJoin').style.display = 'none';
+    };
+    document.getElementById('tabJoin').onclick = ()=>{
+      document.getElementById('tabJoin').classList.add('active');
+      document.getElementById('tabCreate').classList.remove('active');
+      document.getElementById('paneJoin').style.display = '';
+      document.getElementById('paneCreate').style.display = 'none';
+    };
+    document.getElementById('createBtn').onclick = createGame;
+    document.getElementById('joinBtn').onclick = joinGame;
+  }
+
+  function renderConnecting(){
+    root.innerHTML = '<div class="panel">در حال اتصال…</div>';
+  }
+
+  function sidebarHtml(){
+    const rows = Object.keys(state.players).map(id=>({id, ...state.players[id]})).sort((a,b)=>(b.score||0)-(a.score||0));
+    const colors = ['#7C2D3A','#33513F','#C4872A','#2F4B7C','#6B4C9A','#B5473A'];
+    return `
+      <div class="panel side">
+        <h3>بازیکنان (${rows.length})</h3>
+        ${rows.map((p,i)=>`
+          <div class="player-row">
+            <span class="name"><span class="dot" style="background:${colors[i%colors.length]}"></span>${escapeHtml(p.name||'بازیکن')}${p.id===myId?' (شما)':''}</span>
+            <span class="score">${p.score||0}</span>
+          </div>
+        `).join('') || '<div class="status-line">هنوز کسی نیست.</div>'}
+        <p class="hint">جواب یکتا = ۱۰ امتیاز، جواب مشترک = ۵ امتیاز، خالی یا غلط = صفر.</p>
+      </div>`;
+  }
+
+  function renderLobby(){
+    root.innerHTML = `
+      <div class="layout">
+        <div class="panel">
+          <span class="badge">لابی</span>
+          ${isHost ? `
+            <p class="status-line" style="margin-top:0;">کد بازی — این را برای دوستانت بفرست:</p>
+            <div class="code-box">${escapeHtml(myId||'')}</div>
+          ` : `<p class="status-line" style="margin-top:0;">وصل شدی، ${escapeHtml(state.players[myId]?state.players[myId].name:'')} 👋 منتظر شروع دور بمان.</p>`}
+          <div style="margin-top:14px;">
+            <button class="btn-primary" id="startBtn">شروع دور</button>
+          </div>
+        </div>
+        ${sidebarHtml()}
+      </div>
+    `;
+    document.getElementById('startBtn').onclick = requestStart;
+  }
+
+  function renderPlaying(){
+    const remain = Math.max(0, state.deadline - Date.now());
+    const secs = Math.ceil(remain/1000);
+    root.innerHTML = `
+      <div class="layout">
+        <div class="panel">
+          <div class="play-head">
+            <div class="letter-chip">${state.letter}</div>
+            <div>
+              <div class="status-line" style="margin-top:0;">دور ${state.roundNum}</div>
+              <div class="timer ${secs<=10?'low':''}">${secs} ثانیه</div>
+            </div>
+          </div>
+          <div class="cat-grid">
+            ${CATEGORIES.map(c=>`
+              <div class="cat-row">
+                <label for="cat_${c.key}">${c.label}</label>
+                <input type="text" id="cat_${c.key}" ${submittedThisRound?'disabled':''} autocomplete="off">
+              </div>
+            `).join('')}
+          </div>
+          <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+            <button class="btn-primary" id="submitBtn" ${submittedThisRound?'disabled':''}>${submittedThisRound?'ارسال شد ✓':'ارسال جواب‌ها'}</button>
+            <span class="status-line" style="margin-top:0;">${Object.keys(state.answers).length} نفر ارسال کرده‌اند</span>
+          </div>
+        </div>
+        ${sidebarHtml()}
+      </div>
+    `;
+    document.getElementById('submitBtn').onclick = submitAnswers;
+  }
+
+  function renderReveal(){
+    const letter = state.letter;
+    const playerIds = Object.keys(state.players);
+    const rows = CATEGORIES.map(cat=>{
+      const words = playerIds.map(pid=> (state.answers[pid] && state.answers[pid].categories && state.answers[pid].categories[cat.key]) || '');
+      const cells = playerIds.map((pid,i)=>{
+        const w = words[i];
+        const pts = pointsFor(w, letter, words);
+        const cls = pts===10?'pt-10':(pts===5?'pt-5':'pt-0');
+        return `<td class="${cls}">${escapeHtml(w)||'—'}${w?`<br><small>${pts} امتیاز</small>`:''}</td>`;
+      }).join('');
+      return `<tr><th>${cat.label}</th>${cells}</tr>`;
+    }).join('');
+    const header = playerIds.map(pid=>`<th>${escapeHtml(state.players[pid]?state.players[pid].name:'؟')}</th>`).join('');
+
+    root.innerHTML = `
+      <div class="layout">
+        <div class="panel">
+          <span class="badge">نتیجه دور ${state.roundNum} — حرف «${letter}»</span>
+          <div style="overflow-x:auto;">
+            <table class="score-table"><thead><tr><th></th>${header}</tr></thead><tbody>${rows}</tbody></table>
+          </div>
+          <div style="margin-top:16px;"><button class="btn-primary" id="nextBtn">دور بعدی</button></div>
+        </div>
+        ${sidebarHtml()}
+      </div>
+    `;
+    document.getElementById('nextBtn').onclick = ()=>{ submittedThisRound=false; requestStart(); };
+  }
+
+  if(typeof Peer === 'undefined'){
+    root.innerHTML = '<div class="panel">کتابخانهٔ اتصال (PeerJS) بارگذاری نشد — اتصال اینترنت را بررسی کنید و صفحه را رفرش کنید.</div>';
+  } else {
+    render();
+  }
+</script>
+</body>
+</html>
