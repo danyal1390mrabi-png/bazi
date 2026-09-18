@@ -87,6 +87,7 @@
   ];
   const LETTERS = ['ا','ب','پ','ت','ج','چ','د','ر','ز','س','ش','ص','ط','ع','ف','ق','ک','گ','ل','م','ن','و','ه','ی'];
   const ROUND_MS = 60000;
+  const COUNTDOWN_MS = 3000; // مدت شمارش معکوس قبل از شروع هر دور
 
   const root = document.getElementById('root');
 
@@ -98,11 +99,13 @@
   let joinCodeDraft = '';
   let joinError = '';
 
-  let state = { phase:'lobby', roundNum:0, letter:null, deadline:null, players:{}, answers:{} };
+  let state = { phase:'lobby', roundNum:0, letter:null, deadline:null, countdownEndsAt:null, players:{}, answers:{} };
 
   let submittedThisRound = false;
   let timerInterval = null;
   let deadlineTimer = null;
+  let countdownTimeout = null;   // زمان‌بندی واقعیِ شروع دور بعد از پایان شمارش معکوس (فقط روی میزبان)
+  let countdownInterval = null;  // فقط برای به‌روزرسانی نمایش عدد شمارش معکوس روی صفحه
 
   function norm(s){ return (s||'').trim().toLowerCase().replace(/[يى]/g,'ی').replace(/ك/g,'ک'); }
   function startsWithLetter(word, letter){
@@ -131,7 +134,7 @@
   function handleClientMessage(conn, msg){
     const pid = conn.peer;
     if(msg.type === 'join'){
-      state.players[pid] = state.players[pid] || { name: msg.name, score: 0 };
+      state.players[pid] = state.players[pid] || { name: msg.name, score: 0, ready: false };
       state.players[pid].name = msg.name || state.players[pid].name;
       broadcastState();
     } else if(msg.type === 'submit'){
@@ -139,9 +142,47 @@
         state.answers[pid] = { categories: msg.categories };
         broadcastState();
       }
-    } else if(msg.type === 'requestStart'){
-      startRound();
+    } else if(msg.type === 'ready'){
+      handleReadyChange(pid, !!msg.ready);
+      broadcastState();
+    } else if(msg.type === 'requestNextRound'){
+      beginCountdown();
     }
+  }
+
+  // وقتی یکی آماده/ناآماده می‌شود: اگر وسط شمارش معکوس یکی لغو کرد، شمارش متوقف می‌شود؛
+  // اگر همه در لابی آماده باشند، شمارش معکوس شروع می‌شود.
+  function handleReadyChange(pid, ready){
+    if(!state.players[pid]) return;
+    state.players[pid].ready = ready;
+    if(state.phase === 'countdown' && !ready){
+      state.phase = 'lobby';
+      state.countdownEndsAt = null;
+      if(countdownTimeout){ clearTimeout(countdownTimeout); countdownTimeout = null; }
+    } else if(state.phase === 'lobby'){
+      maybeStartCountdown();
+    }
+  }
+
+  function maybeStartCountdown(){
+    const ids = Object.keys(state.players);
+    if(ids.length === 0) return;
+    const allReady = ids.every(pid => state.players[pid].ready);
+    if(!allReady) return;
+    beginCountdown();
+  }
+
+  // شمارش معکوس را شروع می‌کند و بعد از اتمامش خودش دور را شروع می‌کند
+  function beginCountdown(){
+    if(state.phase === 'playing' || state.phase === 'countdown') return;
+    state.phase = 'countdown';
+    state.countdownEndsAt = Date.now() + COUNTDOWN_MS;
+    if(countdownTimeout) clearTimeout(countdownTimeout);
+    countdownTimeout = setTimeout(()=>{
+      countdownTimeout = null;
+      if(state.phase === 'countdown') startRound();
+    }, COUNTDOWN_MS + 200);
+    broadcastState();
   }
 
   function startRound(){
@@ -220,9 +261,21 @@
     if(btn){ btn.disabled = true; btn.textContent = 'ارسال شد ✓'; }
   }
 
-  function requestStart(){
-    if(isHost){ startRound(); }
-    else if(hostConn && hostConn.open){ hostConn.send({type:'requestStart'}); }
+  function toggleReady(){
+    if(isHost){
+      const cur = !!(state.players[myId] && state.players[myId].ready);
+      handleReadyChange(myId, !cur);
+      broadcastState();
+    } else if(hostConn && hostConn.open){
+      const cur = !!(state.players[myId] && state.players[myId].ready);
+      hostConn.send({type:'ready', ready: !cur});
+    }
+  }
+
+  function requestNextRound(){
+    submittedThisRound = false;
+    if(isHost){ beginCountdown(); }
+    else if(hostConn && hostConn.open){ hostConn.send({type:'requestNextRound'}); }
   }
 
   // ---------------- CONNECTION SETUP ----------------
@@ -234,7 +287,7 @@
     peer = new Peer();
     peer.on('open', id=>{
       myId = id;
-      state.players[myId] = { name: nameDraft.trim(), score: 0 };
+      state.players[myId] = { name: nameDraft.trim(), score: 0, ready: false };
       screen = 'room';
       render();
     });
@@ -244,6 +297,7 @@
       conn.on('close', ()=>{
         const idx = conns.indexOf(conn); if(idx>=0) conns.splice(idx,1);
         delete state.players[conn.peer];
+        if(state.phase === 'lobby') maybeStartCountdown();
         broadcastState();
       });
     });
@@ -296,16 +350,27 @@
     playingRoundKey = null;
   }
 
+  function stopCountdownTimer(){
+    if(countdownInterval){ clearInterval(countdownInterval); countdownInterval = null; }
+  }
+
   function render(){
-    if(screen === 'landing'){ stopPlayingTimer(); return renderLanding(); }
-    if(screen === 'connecting'){ stopPlayingTimer(); return renderConnecting(); }
+    if(screen === 'landing'){ stopPlayingTimer(); stopCountdownTimer(); return renderLanding(); }
+    if(screen === 'connecting'){ stopPlayingTimer(); stopCountdownTimer(); return renderConnecting(); }
 
     if(state.phase === 'playing'){
+      stopCountdownTimer();
       renderPlayingSmart();
+      return;
+    }
+    if(state.phase === 'countdown'){
+      stopPlayingTimer();
+      renderCountdown();
       return;
     }
 
     stopPlayingTimer();
+    stopCountdownTimer();
     if(state.phase === 'reveal') return renderReveal();
     return renderLobby();
   }
@@ -353,12 +418,13 @@
   function sidebarHtml(){
     const rows = Object.keys(state.players).map(id=>({id, ...state.players[id]})).sort((a,b)=>(b.score||0)-(a.score||0));
     const colors = ['#7C2D3A','#33513F','#C4872A','#2F4B7C','#6B4C9A','#B5473A'];
+    const showReady = (state.phase === 'lobby' || state.phase === 'countdown');
     return `
       <div class="panel side">
         <h3>بازیکنان (${rows.length})</h3>
         ${rows.map((p,i)=>`
           <div class="player-row">
-            <span class="name"><span class="dot" style="background:${colors[i%colors.length]}"></span>${escapeHtml(p.name||'بازیکن')}${p.id===myId?' (شما)':''}</span>
+            <span class="name"><span class="dot" style="background:${colors[i%colors.length]}"></span>${escapeHtml(p.name||'بازیکن')}${p.id===myId?' (شما)':''}${showReady ? (p.ready ? ' ✅' : ' ⏳') : ''}</span>
             <span class="score">${p.score||0}</span>
           </div>
         `).join('') || '<div class="status-line">هنوز کسی نیست.</div>'}
@@ -367,6 +433,9 @@
   }
 
   function renderLobby(){
+    const rows = Object.keys(state.players).map(id=>({id, ...state.players[id]}));
+    const readyCount = rows.filter(p=>p.ready).length;
+    const myReady = !!(state.players[myId] && state.players[myId].ready);
     root.innerHTML = `
       <div class="layout">
         <div class="panel">
@@ -374,15 +443,36 @@
           ${isHost ? `
             <p class="status-line" style="margin-top:0;">کد بازی — این را برای دوستانت بفرست:</p>
             <div class="code-box">${escapeHtml(myId||'')}</div>
-          ` : `<p class="status-line" style="margin-top:0;">وصل شدی، ${escapeHtml(state.players[myId]?state.players[myId].name:'')} 👋 منتظر شروع دور بمان.</p>`}
+          ` : `<p class="status-line" style="margin-top:0;">وصل شدی، ${escapeHtml(state.players[myId]?state.players[myId].name:'')} 👋</p>`}
+          <p class="status-line">${readyCount} از ${rows.length} نفر آماده‌اند. وقتی همه آماده باشند، بازی خودش با شمارش معکوس شروع می‌شود.</p>
           <div style="margin-top:14px;">
-            <button class="btn-primary" id="startBtn">شروع دور</button>
+            <button class="btn-primary" id="readyBtn">${myReady ? 'لغو آماده‌بودن' : 'آماده‌ام ✓'}</button>
           </div>
         </div>
         ${sidebarHtml()}
       </div>
     `;
-    document.getElementById('startBtn').onclick = requestStart;
+    document.getElementById('readyBtn').onclick = toggleReady;
+  }
+
+  function renderCountdown(){
+    if(!countdownInterval){
+      countdownInterval = setInterval(()=>{
+        if(state.phase === 'countdown') renderCountdown();
+      }, 200);
+    }
+    const remain = Math.max(0, (state.countdownEndsAt||0) - Date.now());
+    const n = Math.ceil(remain/1000);
+    root.innerHTML = `
+      <div class="layout">
+        <div class="panel" style="text-align:center;">
+          <span class="badge">آماده باش!</span>
+          <div style="font-size:64px; font-weight:800; color:var(--brand); margin:18px 0;">${n>0?n:'برو!'}</div>
+          <p class="status-line">بازی الان شروع می‌شود…</p>
+        </div>
+        ${sidebarHtml()}
+      </div>
+    `;
   }
 
   // فقط وقتی دور عوض شده (یا اولین‌بار وارد صفحه‌ی بازی می‌شویم) فرم را کامل می‌سازیم؛
@@ -408,11 +498,14 @@
               <div class="timer" id="timerBox">-- ثانیه</div>
             </div>
           </div>
+          <p class="status-line" style="margin-top:0; margin-bottom:14px; font-weight:700; color:var(--ink);">
+            حرف این دور «${state.letter}» است — هر ۶ کادر زیر را با یک کلمه که با همین حرف شروع می‌شود پر کن.
+          </p>
           <div class="cat-grid">
             ${CATEGORIES.map(c=>`
               <div class="cat-row">
                 <label for="cat_${c.key}">${c.label}</label>
-                <input type="text" id="cat_${c.key}" ${submittedThisRound?'disabled':''} autocomplete="off">
+                <input type="text" id="cat_${c.key}" ${submittedThisRound?'disabled':''} autocomplete="off" placeholder="کلمه‌ای با حرف ${state.letter}">
               </div>
             `).join('')}
           </div>
@@ -468,7 +561,7 @@
         ${sidebarHtml()}
       </div>
     `;
-    document.getElementById('nextBtn').onclick = ()=>{ submittedThisRound=false; requestStart(); };
+    document.getElementById('nextBtn').onclick = requestNextRound;
   }
 
   if(typeof Peer === 'undefined'){
