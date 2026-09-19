@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 <style>
   :root{
     --bg:#F3EFE6; --panel:#FFFFFF; --ink:#22261F; --muted:#71786A; --line:#E4DFD0;
@@ -77,6 +79,41 @@
 </div>
 
 <script>
+  /* ====================================================================
+     تنظیمات Firebase (فقط برای بخش «بازی‌های آنلاین الان» لازمه)
+     ====================================================================
+     این بخش کاملاً اختیاریه: اگه پرش نکنی، بقیه‌ی بازی (ساخت روم، دادن کد
+     به دوستات، وصل‌شدن با کد) عادی کار می‌کنه؛ فقط لیست عمومی «بازی‌های
+     آنلاین الان» غیرفعال می‌مونه.
+
+     برای فعال کردنش (رایگانه، حدود ۵ دقیقه طول می‌کشه):
+       ۱) برو به https://console.firebase.google.com و با جیمیلت وارد شو.
+       ۲) دکمه‌ی "Add project" رو بزن، یه اسم دلخواه بده (Analytics لازم نیست).
+       ۳) از منوی سمت چپ: Build > Realtime Database > "Create Database".
+          حالتش (mode) رو "Test mode" بذار.
+       ۴) بالای صفحه، آیکون چرخ‌دنده > "Project settings" رو بزن. پایین
+          صفحه، بخش "Your apps" را پیدا کن و روی آیکون </> (Web) بزن تا
+          یه اپ وب بسازی.
+       ۵) یه شیء (object) به اسم firebaseConfig بهت نشون داده می‌شه؛ دقیقاً
+          همون رو کپی کن و کل شیء زیر رو باهاش عوض کن.
+     ==================================================================== */
+  const firebaseConfig = {
+    apiKey: "AIzaSyBm2gMMt35N0mdvWPGXfns_X4kLt_d0v9Q",
+    authDomain: "esm-famil-33228.firebaseapp.com",
+    databaseURL: "https://esm-famil-33228-default-rtdb.firebaseio.com",
+    projectId: "esm-famil-33228"
+  };
+
+  let fbReady = false;
+  let roomsRef = null;
+  try{
+    if(firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf('PASTE_') !== 0 && typeof firebase !== 'undefined'){
+      firebase.initializeApp(firebaseConfig);
+      roomsRef = firebase.database().ref('rooms');
+      fbReady = true;
+    }
+  }catch(e){ console.warn('Firebase init failed', e); }
+
   const CATEGORIES = [
     { key:'name',   label:'نام' },
     { key:'family', label:'نام خانوادگی' },
@@ -96,8 +133,15 @@
   let peer = null, myId = null, hostConn = null;
   const conns = [];         // host only: array of DataConnection
   let nameDraft = '';
+  let roomTitleDraft = '';
   let joinCodeDraft = '';
   let joinError = '';
+
+  // ---- لیست عمومی بازی‌های آنلاین (Firebase) ----
+  let myRoomRef = null;      // مرجع روم خودمون توی دیتابیس (فقط وقتی میزبانیم)
+  let roomsListener = null;  // آیا الان به تغییرات لیست روم‌ها گوش می‌دیم
+  let onlineRooms = {};      // آخرین نسخه‌ی لیست روم‌های آنلاین
+  let roomsSearchTerm = '';
 
   let state = { phase:'lobby', roundNum:0, letter:null, deadline:null, countdownEndsAt:null, players:{}, answers:{} };
 
@@ -128,6 +172,7 @@
   function broadcastState(){
     const payload = JSON.parse(JSON.stringify(state));
     conns.forEach(c=>{ try{ if(c.open) c.send({type:'state', state: payload}); }catch(e){} });
+    updateRoomInDirectory();
     render();
   }
 
@@ -235,6 +280,60 @@
     broadcastState();
   }
 
+  // ---------------- لیست عمومی بازی‌های آنلاین ----------------
+  function registerRoomInDirectory(code, title){
+    if(!fbReady) return;
+    myRoomRef = firebase.database().ref('rooms/' + code);
+    myRoomRef.set({
+      title: title,
+      hostName: nameDraft.trim(),
+      playerCount: Object.keys(state.players).length,
+      phase: state.phase,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      lastUpdate: firebase.database.ServerValue.TIMESTAMP
+    });
+    // اگه تب میزبان بسته بشه یا اینترنتش قطع بشه، خودش از لیست حذف می‌شه
+    myRoomRef.onDisconnect().remove();
+  }
+
+  function updateRoomInDirectory(){
+    if(!fbReady || !myRoomRef) return;
+    myRoomRef.update({
+      playerCount: Object.keys(state.players).length,
+      phase: state.phase,
+      lastUpdate: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+
+  function unregisterRoomFromDirectory(){
+    if(myRoomRef){ myRoomRef.remove(); myRoomRef = null; }
+  }
+
+  function startWatchingRooms(){
+    if(!fbReady || !roomsRef || roomsListener) return;
+    roomsListener = snap=>{
+      onlineRooms = snap.val() || {};
+      if(screen === 'landing') renderRoomsList();
+    };
+    roomsRef.on('value', roomsListener);
+  }
+
+  function stopWatchingRooms(){
+    if(roomsRef && roomsListener){ roomsRef.off('value', roomsListener); roomsListener = null; }
+  }
+
+  function joinRoomByCode(code){
+    const tabJoinBtn = document.getElementById('tabJoin');
+    if(tabJoinBtn) tabJoinBtn.click();
+    const codeInput = document.getElementById('joinCode');
+    if(codeInput) codeInput.value = code;
+    const nameInput = document.getElementById('joinName');
+    if(nameInput){
+      if(nameInput.value.trim()){ joinGame(); }
+      else { nameInput.focus(); }
+    }
+  }
+
   // ---------------- SHARED ACTIONS ----------------
   function collectFormAnswers(){
     const out = {};
@@ -278,17 +377,33 @@
     else if(hostConn && hostConn.open){ hostConn.send({type:'requestNextRound'}); }
   }
 
+  // یک کد کوتاه و ساده برای اشتراک‌گذاری بازی می‌سازد (به‌جای شناسه‌ی طولانی پیش‌فرض PeerJS)
+  const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // بدون حروف/ارقام شبیه‌به‌هم مثل O,0,I,1
+  function generateShortCode(len){
+    let code = '';
+    for(let i=0;i<len;i++) code += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];
+    return code;
+  }
+
   // ---------------- CONNECTION SETUP ----------------
   function createGame(){
     nameDraft = (document.getElementById('hostName')||{}).value || nameDraft;
-    if(!nameDraft.trim()){ return; }
+    roomTitleDraft = (document.getElementById('hostTitle')||{}).value || roomTitleDraft;
+    if(!nameDraft.trim() || !roomTitleDraft.trim()){ return; }
+    stopWatchingRooms();
     screen = 'connecting'; render();
     isHost = true;
-    peer = new Peer();
+    startHostPeer(4);
+  }
+
+  function startHostPeer(codeLength){
+    const shortCode = generateShortCode(codeLength);
+    peer = new Peer(shortCode);
     peer.on('open', id=>{
       myId = id;
       state.players[myId] = { name: nameDraft.trim(), score: 0, ready: false };
       screen = 'room';
+      registerRoomInDirectory(shortCode, roomTitleDraft.trim());
       render();
     });
     peer.on('connection', conn=>{
@@ -302,6 +417,12 @@
       });
     });
     peer.on('error', err=>{
+      if(err && err.type === 'unavailable-id'){
+        // این کد قبلاً گرفته شده؛ یک کد جدید امتحان کن
+        try{ peer.destroy(); }catch(e){}
+        startHostPeer(codeLength);
+        return;
+      }
       joinError = 'خطا در ساخت بازی: ' + (err && err.type ? err.type : 'نامشخص');
       screen = 'landing'; render();
     });
@@ -309,9 +430,10 @@
 
   function joinGame(){
     nameDraft = (document.getElementById('joinName')||{}).value || nameDraft;
-    joinCodeDraft = ((document.getElementById('joinCode')||{}).value || '').trim();
+    joinCodeDraft = ((document.getElementById('joinCode')||{}).value || '').trim().toUpperCase().replace(/\s+/g,'');
     if(!nameDraft.trim() || !joinCodeDraft){ return; }
     joinError = '';
+    stopWatchingRooms();
     screen = 'connecting'; render();
     isHost = false;
     peer = new Peer();
@@ -385,14 +507,22 @@
         </div>
         <div id="paneCreate">
           <div class="field"><label>اسمت</label><input type="text" id="hostName" placeholder="مثلاً سارا" value="${escapeHtml(nameDraft)}"></div>
+          <div class="field"><label>عنوان بازی (توی لیست بازی‌های آنلاین نشون داده می‌شه)</label><input type="text" id="hostTitle" placeholder="مثلاً دورهمی جمعه‌ی ما" value="${escapeHtml(roomTitleDraft)}"></div>
           <button class="btn-primary" id="createBtn">ساخت بازی و شدن میزبان</button>
-          <p class="hint">تو میزبان می‌شوی؛ یک کد به تو داده می‌شود که باید برای دوستانت بفرستی تا با آن وصل شوند.</p>
+          <p class="hint">تو میزبان می‌شوی؛ یک کد کوتاه به تو داده می‌شود که باید برای دوستانت بفرستی، یا بگذاری از لیست پایین پیدایش کنند.</p>
         </div>
         <div id="paneJoin" style="display:none;">
           <div class="field"><label>اسمت</label><input type="text" id="joinName" placeholder="مثلاً سارا" value="${escapeHtml(nameDraft)}"></div>
           <div class="field"><label>کد بازی</label><input type="text" id="joinCode" placeholder="کدی که میزبان فرستاده" value="${escapeHtml(joinCodeDraft)}"></div>
           <button class="btn-primary" id="joinBtn">اتصال به بازی</button>
         </div>
+      </div>
+      <div class="panel" style="margin-top:14px;">
+        <h3 style="margin:0 0 10px; font-size:14px;">بازی‌های آنلاین الان</h3>
+        <p class="hint" style="margin-top:0; color:var(--accent-deep);">⚠️ ممکنه برای دیدن و استفاده از این بخش نیاز داشته باشی فیلترشکن (VPN) رو روشن کنی.</p>
+        <input type="text" id="roomSearchInput" placeholder="جست‌وجو بر اساس عنوان بازی…" value="${escapeHtml(roomsSearchTerm)}">
+        <div id="roomsListContainer" style="margin-top:12px;">${roomsListHtml()}</div>
+        ${fbReady ? '' : `<p class="hint">این بخش هنوز فعال نشده؛ باید تنظیمات Firebase بالای کد پر بشه.</p>`}
       </div>
     `;
     document.getElementById('tabCreate').onclick = ()=>{
@@ -409,6 +539,47 @@
     };
     document.getElementById('createBtn').onclick = createGame;
     document.getElementById('joinBtn').onclick = joinGame;
+    document.getElementById('roomSearchInput').oninput = (e)=>{
+      roomsSearchTerm = e.target.value;
+      renderRoomsList(); // فقط لیست را آپدیت کن، نه کل صفحه (تا نوشتن توی جست‌وجو پاک نشه)
+    };
+    bindRoomsListButtons();
+    startWatchingRooms();
+  }
+
+  // فقط بخش لیست بازی‌های آنلاین را از نو می‌سازد، بدون دست‌زدن به بقیه‌ی فرم لندینگ
+  function renderRoomsList(){
+    const el = document.getElementById('roomsListContainer');
+    if(el) el.innerHTML = roomsListHtml();
+    bindRoomsListButtons();
+  }
+
+  function bindRoomsListButtons(){
+    document.querySelectorAll('button[data-room-code]').forEach(btn=>{
+      btn.onclick = ()=> joinRoomByCode(btn.getAttribute('data-room-code'));
+    });
+  }
+
+  function roomsListHtml(){
+    const term = norm(roomsSearchTerm);
+    const entries = Object.keys(onlineRooms).map(code=>({code, ...onlineRooms[code]}))
+      .filter(r=> !term || norm(r.title||'').indexOf(term) !== -1)
+      .sort((a,b)=> (b.lastUpdate||0)-(a.lastUpdate||0));
+
+    if(!fbReady) return '';
+    if(entries.length === 0){
+      return `<p class="status-line" style="margin-top:0;">الان هیچ بازی آنلاینی پیدا نشد.</p>`;
+    }
+    const phaseLabel = { lobby:'در لابی، قابل ورود', countdown:'الان شروع می‌شود', playing:'درحال بازی', reveal:'بین دو دور' };
+    return entries.map(r=>`
+      <div class="player-row">
+        <span class="name" style="flex-direction:column; align-items:flex-start; gap:2px; white-space:normal;">
+          <strong>${escapeHtml(r.title||'بدون عنوان')}</strong>
+          <span style="color:var(--muted); font-size:12px;">میزبان: ${escapeHtml(r.hostName||'؟')} · ${r.playerCount||0} نفر · ${phaseLabel[r.phase] || r.phase || ''}</span>
+        </span>
+        <button class="btn-ghost" data-room-code="${escapeHtml(r.code)}" style="padding:7px 12px; font-size:12.5px; flex:none;">پیوستن</button>
+      </div>
+    `).join('');
   }
 
   function renderConnecting(){
@@ -563,6 +734,10 @@
     `;
     document.getElementById('nextBtn').onclick = requestNextRound;
   }
+
+  window.addEventListener('beforeunload', ()=>{
+    if(isHost) unregisterRoomFromDirectory();
+  });
 
   if(typeof Peer === 'undefined'){
     root.innerHTML = '<div class="panel">کتابخانهٔ اتصال (PeerJS) بارگذاری نشد — اتصال اینترنت را بررسی کنید و صفحه را رفرش کنید.</div>';
