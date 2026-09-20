@@ -114,6 +114,20 @@
     }
   }catch(e){ console.warn('Firebase init failed', e); }
 
+  // سرورهای STUN/TURN — TURN باعث می‌شه اگه اتصال مستقیم بین دو نت مختلف
+  // ممکن نبود (مثلاً پشت فیلترینگ یا NAT سخت‌گیر)، ترافیک از یه سرور واسط رد بشه
+  // تا دو نفر روی اینترنت‌های متفاوت هم بتونن بدون هات‌اسپات مشترک بازی کنن.
+  const PEER_CONFIG = {
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.relay.metered.ca:80' },
+        { urls: 'turn:global.relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:global.relay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+      ]
+    }
+  };
+
   const CATEGORIES = [
     { key:'name',   label:'نام' },
     { key:'family', label:'نام خانوادگی' },
@@ -398,7 +412,7 @@
 
   function startHostPeer(codeLength){
     const shortCode = generateShortCode(codeLength);
-    peer = new Peer(shortCode);
+    peer = new Peer(shortCode, PEER_CONFIG);
     peer.on('open', id=>{
       myId = id;
       state.players[myId] = { name: nameDraft.trim(), score: 0, ready: false };
@@ -436,7 +450,7 @@
     stopWatchingRooms();
     screen = 'connecting'; render();
     isHost = false;
-    peer = new Peer();
+    peer = new Peer(PEER_CONFIG);
     peer.on('open', id=>{
       myId = id;
       hostConn = peer.connect(joinCodeDraft, { reliable:true });
