@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>اسم و فامیل آنلاین</title>
+<title>اسم و فامیل آنلاین دانیال کد </title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -114,16 +114,17 @@
     }
   }catch(e){ console.warn('Firebase init failed', e); }
 
-  // سرورهای STUN/TURN — TURN باعث می‌شه اگه اتصال مستقیم بین دو نت مختلف
-  // ممکن نبود (مثلاً پشت فیلترینگ یا NAT سخت‌گیر)، ترافیک از یه سرور واسط رد بشه
+  // سرورهای STUN/TURN شخصی خودمون (Metered.ca) — TURN باعث می‌شه اگه اتصال مستقیم بین
+  // دو نت مختلف ممکن نبود (مثلاً پشت فیلترینگ یا NAT سخت‌گیر)، ترافیک از یه سرور واسط رد بشه
   // تا دو نفر روی اینترنت‌های متفاوت هم بتونن بدون هات‌اسپات مشترک بازی کنن.
   const PEER_CONFIG = {
     config: {
       iceServers: [
         { urls: 'stun:stun.relay.metered.ca:80' },
-        { urls: 'turn:global.relay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:global.relay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turn:global.relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        { urls: 'turn:global.relay.metered.ca:80', username: '8708e49034d4e1e667d3aea0', credential: '2gn9sGyrcrnkUQ/P' },
+        { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: '8708e49034d4e1e667d3aea0', credential: '2gn9sGyrcrnkUQ/P' },
+        { urls: 'turn:global.relay.metered.ca:443', username: '8708e49034d4e1e667d3aea0', credential: '2gn9sGyrcrnkUQ/P' },
+        { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: '8708e49034d4e1e667d3aea0', credential: '2gn9sGyrcrnkUQ/P' }
       ]
     }
   };
